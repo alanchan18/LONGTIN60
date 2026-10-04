@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食品加工廠智慧下單與派單系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- 頂部導覽列與角色切換 -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-industry text-red-500 text-2xl"></i>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">食品加工廠 - 下單與派單系統</h1>
+                    <p class="text-xs text-slate-400">專為食品加工 / 肉品批發廠打造</p>
+                </div>
+            </div>
+            <!-- 切換檢視角色 -->
+            <div class="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg text-sm">
+                <button onclick="switchRole('floor')" id="btn-floor" class="px-3 py-1.5 rounded-md transition flex items-center gap-1.5 bg-red-600 text-white font-medium">
+                    <i class="fa-solid fa-mobile-screen"></i> 門市落單 (QR)
+                </button>
+                <button onclick="switchRole('admin')" id="btn-admin" class="px-3 py-1.5 rounded-md transition flex items-center gap-1.5 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-user-gear"></i> 中樞派單 (你)
+                    <span id="pending-badge" class="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+                <button onclick="switchRole('kitchen')" id="btn-kitchen" class="px-3 py-1.5 rounded-md transition flex items-center gap-1.5 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-fire-burner"></i> 生產部接單
+                    <span id="kitchen-badge" class="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+        <!-- 1. 樓面/門市同事下單介面 -->
+        <section id="view-floor" class="role-view block max-w-xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="border-b pb-4 mb-4">
+                <div class="inline-block bg-red-100 text-red-700 font-bold px-2.5 py-1 rounded text-xs mb-2">
+                    <i class="fa-solid fa-qrcode mr-1"></i> 門市掃碼專用頁面
+                </div>
+                <h2 class="text-xl font-bold text-slate-800">新建生產加工單</h2>
+                <p class="text-sm text-slate-500">請填寫詳細訂單資料，支援單張 PO 訂購多項產品。</p>
+            </div>
+
+            <form id="orderForm" onsubmit="handleFloorSubmit(event)" class="space-y-4">
+                
+                <!-- 基本資料區 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">交貨 / 出貨日期 <span class="text-red-500">*</span></label>
+                        <input type="date" id="field-date" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">PO 號碼 <span class="text-red-500">*</span></label>
+                        <input type="text" id="field-po" placeholder="例：PO-20261001" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">客戶名稱 <span class="text-red-500">*</span></label>
+                        <input type="text" id="field-client" placeholder="例：永利酒店 / 散客張先生" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">部門 <span class="text-red-500">*</span></label>
+                        <input type="text" id="field-department" placeholder="例：採購部 / 餐飲部" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">下單單位 / 點單來源 <span class="text-red-500">*</span></label>
+                    <select id="field-dept" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base">
+                        <option value="正鋪落單">正鋪落單</option>
+                        <option value="外賣 / 團餐部">外賣 / 團餐部</option>
+                        <option value="批發業務部">批發業務部</option>
+                    </select>
+                </div>
+
+                <!-- 💡 多產品動態新增區塊 -->
+                <div class="border-2 border-red-100 bg-red-50/30 p-4 rounded-xl space-y-3">
+                    <div class="flex justify-between items-center border-b border-red-100 pb-2">
+                        <label class="block text-base font-bold text-red-700">🛒 訂購加工產品項目</label>
+                        <button type="button" onclick="addProductRow()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> 新增產品
+                        </button>
+                    </div>
+
+                    <div id="product-rows-container" class="space-y-3">
+                        <!-- 動態產品列渲染於此 -->
+                    </div>
+                </div>
+
+                <!-- 加工與規格 -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">加工/斬件規格 <span class="text-red-500">*</span></label>
+                    <select id="field-spec" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base">
+                        <option value="切件">1. 切件</option>
+                        <option value="去頭去尾開邊">2. 去頭去尾開邊</option>
+                        <option value="斬件">3. 斬件</option>
+                        <option value="原件">4. 原件</option>
+                    </select>
+                </div>
+
+                <!-- 溫度要求 -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">溫度要求 <span class="text-red-500">*</span></label>
+                    <select id="field-temp" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-base font-medium">
+                        <option value="常溫">1. 常溫</option>
+                        <option value="冷藏 0-4度">2. 冷藏 0-4度</option>
+                        <option value="急凍 -18度或以下">3. 急凍 -18度或以下</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">緊急程度 / 交貨時限</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="border p-2 rounded-lg text-center cursor-pointer hover:bg-slate-50 flex flex-col items-center">
+                            <input type="radio" name="urgency" value="一般" checked class="text-red-600 focus:ring-red-500">
+                            <span class="text-xs font-bold mt-1 text-slate-700">一般班次</span>
+                        </label>
+                        <label class="border border-amber-300 bg-amber-50 p-2 rounded-lg text-center cursor-pointer hover:bg-amber-100 flex flex-col items-center">
+                            <input type="radio" name="urgency" value="優先" class="text-amber-600 focus:ring-amber-500">
+                            <span class="text-xs font-bold mt-1 text-amber-800">今日午市前</span>
+                        </label>
+                        <label class="border border-red-300 bg-red-50 p-2 rounded-lg text-center cursor-pointer hover:bg-red-100 flex flex-col items-center">
+                            <input type="radio" name="urgency" value="特急" class="text-red-600 focus:ring-red-500">
+                            <span class="text-xs font-bold mt-1 text-red-800">🔥 特急單</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">特別備註 (簡短說明)</label>
+                    <input type="text" id="field-note" placeholder="如：少油、不加醬汁、分盒裝" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                </div>
+
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition active:scale-95 text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> 立即送出訂單
+                </button>
+            </form>
+        </section>
+
+        <!-- 2. 管理員派單中樞介面 -->
+        <section id="view-admin" class="role-view hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">訂單審核與派單中樞</h2>
+                    <p class="text-xs text-slate-500">即時接收門市訂單，指派給生產組別或特定師傅處理。</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="clearOrders()" class="text-xs bg-slate-100 hover:bg-red-50 text-red-600 px-3 py-2 rounded-lg border">
+                        <i class="fa-solid fa-trash-can"></i> 清空資料
+                    </button>
+                </div>
+            </div>
+
+            <!-- 統計卡片 -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+                    <div class="text-xs text-slate-500">待審核 / 未派單</div>
+                    <div id="stat-pending" class="text-2xl font-black text-red-600">0</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+                    <div class="text-xs text-slate-500">生產中</div>
+                    <div id="stat-progress" class="text-2xl font-black text-amber-500">0</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+                    <div class="text-xs text-slate-500">已完成待出貨</div>
+                    <div id="stat-completed" class="text-2xl font-black text-emerald-600">0</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+                    <div class="text-xs text-slate-500">今日總單數</div>
+                    <div id="stat-total" class="text-2xl font-black text-slate-700">0</div>
+                </div>
+            </div>
+
+            <!-- 訂單表格 -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 border-b text-slate-600 text-xs">
+                                <th class="p-3">交貨日 / PO號碼</th>
+                                <th class="p-3">客戶 / 部門</th>
+                                <th class="p-3">來源</th>
+                                <th class="p-3">訂購產品項目與數量</th>
+                                <th class="p-3">規格 / 溫度 / 備註</th>
+                                <th class="p-3">緊急度</th>
+                                <th class="p-3">指派生產組別</th>
+                                <th class="p-3">狀態</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTableBody" class="divide-y divide-slate-100">
+                            <!-- JS 動態渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 生產部接單介面 -->
+        <section id="view-kitchen" class="role-view hidden space-y-4">
+            <div class="bg-slate-900 text-white p-4 rounded-xl shadow-md flex justify-between items-center">
+                <div>
+                    <span class="bg-amber-500 text-slate-900 font-extrabold text-xs px-2 py-0.5 rounded mr-2">現場大字模式</span>
+                    <h2 class="text-lg font-bold inline">生產部手機工作看板</h2>
+                </div>
+                <div class="text-xs text-slate-400">
+                    組別過濾：
+                    <select id="kitchen-filter" onchange="renderKitchenView()" class="bg-slate-800 text-white border border-slate-700 rounded px-2 py-1 outline-none">
+                        <option value="ALL">全部組別</option>
+                        <option value="燒臘烘烤組">燒臘烘烤組</option>
+                        <option value="斬料切配組">斬料切配組</option>
+                        <option value="熟食包裝區">熟食包裝區</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="kitchenCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 生產卡片動態載入 -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 text-xs text-center py-3 border-t border-slate-800">
+        <p>食品加工廠智慧下單與派單系統 &copy; 2026. 支援多品項與 Telegram 通知。</p>
+    </footer>
+
+    <!-- 系統邏輯 JS -->
+    <script>
+        const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbxuxCa1EHibOD0UipwG9lxUEtaWWMMgB7BBUU1kEOjcZL9m-G34SpB_rQTrH0BvhqPl/exec";
+
+        const productOptions = [
+            "叉燒", "腩叉", "燒肉", "無骨燒肉", "急凍無骨燒腩", "燒鴨", "開胸燒鴨", "燒排骨",
+            "燒鵝", "乳豬", "中豬", "茶豬", "大利", "拜神豬手", "海南雞", "燒雞", "鹽焗雞",
+            "豉油雞", "白切雞", "拜神雞", "貴妃雞", "鹵水鵝", "鹵水鴨", "豉油皇乳鴿", "鹵水乳鴿",
+            "鹵水豬耳", "無骨汾蹄"
+        ];
+
+        let orders = JSON.parse(localStorage.getItem('lt_factory_orders')) || [];
+
+        window.onload = function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('field-date').value = today;
+            addProductRow(); // 預設新增第一列產品
+            updateAllViews();
+        };
+
+        // 動態新增產品列
+        function addProductRow() {
+            const container = document.getElementById('product-rows-container');
+            const rowId = 'p-row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            
+            let optionsHtml = productOptions.map((item, idx) => `<option value="${item}">${idx + 1}. ${item}</option>`).join('');
+
+            const rowHtml = `
+                <div id="${rowId}" class="product-row bg-white p-2.5 rounded-lg border border-slate-200 flex flex-wrap items-center gap-2 shadow-sm">
+                    <div class="flex-1 min-w-[140px]">
+                        <select class="prod-item w-full p-2 border rounded-lg text-sm font-bold text-slate-800 outline-none">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                    <div class="w-20">
+                        <input type="number" class="prod-qty w-full p-2 border rounded-lg text-sm outline-none" min="1" value="1" placeholder="數量" required>
+                    </div>
+                    <div class="w-20">
+                        <select class="prod-unit w-full p-2 border rounded-lg text-sm outline-none">
+                            <option value="隻">隻</option>
+                            <option value="斤">斤</option>
+                            <option value="KG">KG</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="removeProductRow('${rowId}')" class="text-slate-400 hover:text-red-600 p-1 text-sm">
+                        <i class="fa-solid fa-circle-xmark text-lg"></i>
+                    </button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHtml);
+        }
+
+        function removeProductRow(rowId) {
+            const rows = document.querySelectorAll('.product-row');
+            if (rows.length <= 1) {
+                alert("至少需要保留一項產品！");
+                return;
+            }
+            document.getElementById(rowId).remove();
+        }
+
+        function saveOrders() {
+            localStorage.setItem('lt_factory_orders', JSON.stringify(orders));
+        }
+
+        // 下單發送邏輯
+        function handleFloorSubmit(e) {
+            e.preventDefault();
+
+            const date = document.getElementById('field-date').value;
+            const po = document.getElementById('field-po').value;
+            const client = document.getElementById('field-client').value;
+            const department = document.getElementById('field-department').value;
+            const dept = document.getElementById('field-dept').value;
+            const spec = document.getElementById('field-spec').value;
+            const temp = document.getElementById('field-temp').value;
+            const note = document.getElementById('field-note').value;
+            const urgency = document.querySelector('input[name="urgency"]:checked').value;
+
+            // 收集多項產品
+            const productRows = document.querySelectorAll('.product-row');
+            let itemsList = [];
+            productRows.forEach(row => {
+                const item = row.querySelector('.prod-item').value;
+                const qty = row.querySelector('.prod-qty').value;
+                const unit = row.querySelector('.prod-unit').value;
+                itemsList.push(`${item} x ${qty}${unit}`);
+            });
+
+            const itemsFormatted = itemsList.join('、');
+
+            const payloadData = {
+                date: date,
+                po: po,
+                client: client,
+                department: department,
+                dept: dept,
+                item: itemsFormatted, // 多產品組合字串
+                qty: "多品項",
+                spec: spec,
+                temp: temp,
+                note: note || '無',
+                urgency: urgency
+            };
+
+            // 發送至 Google Apps Script
+            if (googleAppScriptUrl && !googleAppScriptUrl.includes("你的_DEPLOYMENT_ID")) {
+                fetch(googleAppScriptUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payloadData)
+                }).catch(err => console.error("發送至 Google 失敗:", err));
+            }
+
+            const newOrder = {
+                id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                ...payloadData,
+                assignee: '未指派',
+                status: '待處理'
+            };
+
+            orders.unshift(newOrder);
+            
+            // 💡 根據交貨日期排序 (最快交貨的排前面)
+            orders.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            saveOrders();
+
+            alert(`✅ 下單成功！\nPO號碼：${newOrder.po}\n品項：${itemsFormatted}\n已同步發送至試算表與 Telegram 通知！`);
+            
+            // 重置表單
+            document.getElementById('orderForm').reset();
+            document.getElementById('field-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('product-rows-container').innerHTML = '';
+            addProductRow();
+            
+            updateAllViews();
+            switchRole('admin');
+        }
+
+        function switchRole(role) {
+            document.querySelectorAll('.role-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${role}`).classList.remove('hidden');
+
+            document.querySelectorAll('header button').forEach(btn => {
+                btn.classList.remove('bg-red-600', 'text-white');
+                btn.classList.add('text-slate-300');
+            });
+            const activeBtn = document.getElementById(`btn-${role}`);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-red-600', 'text-white');
+                activeBtn.classList.remove('text-slate-300');
+            }
+        }
+
+        function updateAllViews() {
+            renderAdminTable();
+            renderKitchenView();
+            updateStats();
+        }
+
+        function updateStats() {
+            const pending = orders.filter(o => o.status === '待處理').length;
+            const progress = orders.filter(o => o.status === '生產中').length;
+            const completed = orders.filter(o => o.status === '已完成').length;
+
+            document.getElementById('stat-pending').innerText = pending;
+            document.getElementById('stat-progress').innerText = progress;
+            document.getElementById('stat-completed').innerText = completed;
+            document.getElementById('stat-total').innerText = orders.length;
+
+            const pBadge = document.getElementById('pending-badge');
+            if(pending > 0) {
+                pBadge.innerText = pending;
+                pBadge.classList.remove('hidden');
+            } else {
+                pBadge.classList.add('hidden');
+            }
+
+            const kBadge = document.getElementById('kitchen-badge');
+            if(progress > 0) {
+                kBadge.innerText = progress;
+                kBadge.classList.remove('hidden');
+            } else {
+                kBadge.classList.add('hidden');
+            }
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('adminTableBody');
+            if(!tbody) return;
+
+            if (orders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400">目前沒有訂單資料</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = orders.map((o, index) => {
+                let urgencyClass = 'bg-slate-100 text-slate-600';
+                if(o.urgency === '特急') urgencyClass = 'bg-red-100 text-red-700 font-bold';
+                if(o.urgency === '優先') urgencyClass = 'bg-amber-100 text-amber-800 font-bold';
+
+                let statusClass = 'bg-slate-100 text-slate-600';
+                if(o.status === '待處理') statusClass = 'bg-red-100 text-red-600 font-bold';
+                if(o.status === '生產中') statusClass = 'bg-amber-100 text-amber-700 font-bold';
+                if(o.status === '已完成') statusClass = 'bg-emerald-100 text-emerald-700 font-bold';
+
+                return `
+                <tr class="hover:bg-slate-50 border-b">
+                    <td class="p-3"><div class="font-bold text-slate-800">${o.date}</div><div class="text-xs text-slate-400">${o.po}</div></td>
+                    <td class="p-3"><div class="font-bold">${o.client}</div><div class="text-xs text-slate-500">${o.department}</div></td>
+                    <td class="p-3 text-xs text-slate-600">${o.dept}</td>
+                    <td class="p-3"><div class="font-bold text-red-600 text-sm">${o.item}</div></td>
+                    <td class="p-3 text-xs"><div>規格: <b>${o.spec}</b></div><div>溫度: <b>${o.temp}</b></div><div class="text-slate-400">備註: ${o.note}</div></td>
+                    <td class="p-3"><span class="text-xs px-2 py-0.5 rounded ${urgencyClass}">${o.urgency}</span></td>
+                    <td class="p-3">
+                        <select onchange="assignGroup(${index}, this.value)" class="text-xs border rounded p-1.5 outline-none font-medium">
+                            <option value="未指派" ${o.assignee === '未指派' ? 'selected' : ''}>-- 請選擇組別 --</option>
+                            <option value="燒臘烘烤組" ${o.assignee === '燒臘烘烤組' ? 'selected' : ''}>燒臘烘烤組</option>
+                            <option value="斬料切配組" ${o.assignee === '斬料切配組' ? 'selected' : ''}>斬料切配組</option>
+                            <option value="熟食包裝區" ${o.assignee === '熟食包裝區' ? 'selected' : ''}>熟食包裝區</option>
+                        </select>
+                    </td>
+                    <td class="p-3"><span class="text-xs px-2 py-0.5 rounded ${statusClass}">${o.status}</span></td>
+                    <td class="p-3 text-right">
+                        <button onclick="deleteOrder(${index})" class="text-slate-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function assignGroup(index, group) {
+            orders[index].assignee = group;
+            if(group !== '未指派' && orders[index].status === '待處理') {
+                orders[index].status = '生產中';
+            }
+            saveOrders();
+            updateAllViews();
+        }
+
+        function renderKitchenView() {
+            const container = document.getElementById('kitchenCardsContainer');
+            if(!container) return;
+
+            const filter = document.getElementById('kitchen-filter').value;
+            const activeOrders = orders.filter(o => o.status === '生產中' && (filter === 'ALL' || o.assignee === filter));
+
+            if(activeOrders.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 border-2 border-dashed rounded-xl bg-white"><i class="fa-solid fa-check-circle text-4xl mb-2 text-slate-300"></i><p>目前無生產中的單據</p></div>`;
+                return;
+            }
+
+            container.innerHTML = activeOrders.map(o => `
+                <div class="bg-white border-2 border-amber-400 rounded-xl p-4 shadow-md space-y-3">
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded">${o.assignee}</span>
+                            <h3 class="text-lg font-black text-red-600 mt-1">${o.item}</h3>
+                        </div>
+                        <span class="text-xs text-slate-400">${o.time}</span>
+                    </div>
+                    <div class="text-sm space-y-1 text-slate-700">
+                        <div><b>交貨日:</b> ${o.date} | <b>PO:</b> ${o.po} (${o.client})</div>
+                        <div><b>規格:</b> <span class="text-red-600 font-bold">${o.spec}</span> | <b>溫度:</b> ${o.temp}</div>
+                        <div class="bg-slate-50 p-2 rounded text-xs text-slate-600"><b>特別備註:</b> ${o.note}</div>
+                    </div>
+                    <button onclick="completeOrder('${o.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg shadow transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check"></i> 完成生產 (銷單)
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function completeOrder(id) {
+            const order = orders.find(o => o.id === id);
+            if(order) {
+                order.status = '已完成';
+                saveOrders();
+                updateAllViews();
+            }
+        }
+
+        function deleteOrder(index) {
+            if(confirm("確定要刪除此訂單嗎？")) {
+                orders.splice(index, 1);
+                saveOrders();
+                updateAllViews();
+            }
+        }
+
+        function clearOrders() {
+            orders = [];
+            saveOrders();
+            updateAllViews();
+        }
+    </script>
+</body>
+</html>
